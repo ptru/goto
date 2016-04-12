@@ -1,0 +1,239 @@
+#!/bin/bash
+
+export GOTO_DEFAULT_VERSION="1.6"
+
+
+function gopaths() {
+	echo "GOROOT ...: ${GOROOT}"
+	echo "GOPATH ...: ${GOPATH}"
+	echo "PATH .....: ${PATH}"
+}
+
+
+function goto() {
+	local project=""
+	local workspace=""
+	local goversion="${GOTO_DEFAULT_VERSION}"
+	local opt=""
+
+	# Get options
+	while getopts ":hv:w:" opt
+	do
+		case "${opt}" in
+			h)
+				echo
+				echo -e "Usage: goto [-h | -v <go-version> ] <workspace> [ <project> ]"
+				echo
+				echo -e "\t-h:\n\t\tThis help menu."
+				echo -e "\t-v <go-version>:\n\t\tGolang version, default is '${GOTO_DEFAULT_VERSION}'."
+				echo
+				;;
+			v)
+				goversion="${OPTARG}"
+				;;
+			\?)
+				echo "Invalid option: ${OPTARG}" >&2
+				return 1
+				;;
+			:)
+				echo "Option -${OPTARG} requires an argument" >&2
+				return 1
+				;;
+		esac
+	done
+
+	# Get arguments
+	case $# in
+		0)
+			echo "Missing arguments, try with options '-h'" >&2
+			return 1
+			;;
+		1)
+			workspace="${1}"
+			project=""
+			;;
+		2)
+			workspace="${1}"
+			project="${2}"
+			;;
+		*)
+			echo "Too many arguments, try with option '-h'" >&2
+			return 1
+			;;
+	esac
+
+	local NEW_GOPATH="${HOME}/.gopath/${workspace}"
+	local NEW_GOROOT="${HOME}/.goroot/${goversion}/go"
+	local NEW_PWD=""
+	
+	# Check arguments
+
+	if [ -e "${NEW_GOPATH}" ]
+	then
+		NEW_GOROOT="$(cat ${NEW_GOPATH}/.goroot)"
+		
+		# Workspace exists, if not given project argument, choose default
+		if [ -z "${project}" ]
+		then
+			project="$(cat ${NEW_GOPATH}/.project)"
+		fi
+
+		NEW_PWD="${NEW_GOPATH}/src/${project}"
+	elif mkdir -p "${NEW_GOPATH}"
+	then
+		if [ -z "${project}" ]
+		then
+			echo "Missing project arguments, must specify in first run!"
+			return 1
+		fi
+
+		NEW_PWD="${NEW_GOPATH}/src/${project}"
+	fi
+
+	# Download GO if not exists
+
+	if ! [ -e "${NEW_GOROOT}" ]
+	then
+		echo "Download go version ${goversion} -> $(dirname "${NEW_GOROOT}")..."
+		mkdir -p "$(dirname "${NEW_GOROOT}")" 
+		
+		curl -s "https://storage.googleapis.com/golang/go${goversion}.linux-amd64.tar.gz" | tar -C "$(dirname "${NEW_GOROOT}")" -xzf -
+		
+		if [ $? -ne 0 ]
+		then
+			echo "Cannot download version of golang: ${goversion}"
+			return 1
+		fi
+	fi
+
+	# Download PROJECT if not exists
+
+	if ! [ -e "${NEW_GOPATH}/src/${project}" ]
+	then
+		echo "Create ${project} -> $(dirname "${NEW_GOPATH}/src/${project}")..."
+		mkdir -p "$(dirname "${NEW_GOPATH}/src/${project}")"
+		
+		cd $_
+		git clone "https://${project}.git" "${NEW_GOPATH}/src/${project}"
+		local EXIT_CODE=$?
+		cd - 2>/dev/null # oh, return is imposible, so what?
+
+		if [ ${EXIT_CODE} -ne 0 ]
+		then
+			echo "Cannot clone project ${project}"
+			return 1
+		fi
+	fi
+
+	# Save default GOROOT & PROJECT
+
+	if ! [ -e "${NEW_GOPATH}/.goroot" ]
+	then
+		echo -n "${NEW_GOROOT}" > "${NEW_GOPATH}/.goroot"
+	fi
+
+	if ! [ -e "${NEW_GOPATH}/.project" ]
+	then
+		echo -n "${project}" > "${NEW_GOPATH}/.project"
+	fi
+
+	# Finally set GOROOT, GOPATH and goto project directory...
+
+	export GOROOT="${NEW_GOROOT}"
+	export GOPATH="${NEW_GOPATH}"
+	cd "${NEW_PWD}"
+
+	# Don't forget about PATH...
+
+	local NEW_PATH_1=${PATH}
+	local NEW_PATH_2=$(echo ${NEW_PATH_1} | sed -e "s|[:]*${HOME}/.goroot/[^/]*/go/bin[/]*||g")
+	local NEW_PATH_3=$(echo ${NEW_PATH_2} | sed -e "s|[:]*${HOME}/.gopath/[^/]*/bin[/]*||g")
+	export PATH="${GOPATH}/bin:${GOROOT}/bin:${NEW_PATH_3}"
+
+	gopaths
+}
+
+
+function __goto_cmpl() {
+	local curr="${COMP_WORDS[$COMP_CWORD]}"
+	local hint=""
+
+	# TODO propose go version
+	case ${COMP_CWORD} in
+		1)
+			# propose existing workspace
+			hint="$(ls ${HOME}/.gopath/ 2>/dev/null)"
+			;;
+		2)
+			# propose existing projects in chosen workspace
+			local subdir=$(dirname /${COMP_WORDS[2]} 2>/dev/null)
+			hint="$(ls ${HOME}/.gopath/${COMP_WORDS[1]}/src/*/*/* -d1 2>/dev/null | sed -e "s|${HOME}/.gopath/${COMP_WORDS[1]}/src/||p")"
+			;;
+	esac
+	COMPREPLY=( $(compgen -W "${hint}" -- "${curr}") )
+}
+
+
+function gorm() {
+	local workspace=""
+
+	case $# in
+		1)
+			name="$(basename ${1})"
+			;;
+		*)
+			echo
+			echo "usage: gorm <workspace>"
+			echo
+			return 1
+			;;
+	esac
+
+	dir="${HOME}/.gopath/${workspace}"
+	if ! [ -e "${dir}" ]
+	then
+		echo "Workspace ${workspace} doesn't exist!"
+		return 1
+	fi
+
+	echo "Are you sure to remote '${dir}' and projects:"
+	# Assume, projects are like: <site>/<namespace>/<project>
+	for p in ${HOME}/.gopath/${workspace}/src/*/*/*
+	do
+		echo ${p}
+	done
+
+	echo
+	echo "(yes/no)?"
+	read confirm
+
+	if [ "${confirm}" = "yes" ]
+	then
+		echo "Removing..."
+		rm -rf "${dir}"
+		echo "Removed!"
+
+		return 0
+	else
+		echo "Aborted!"
+		return 1
+	fi
+}
+
+
+function __gorm_cmpl() {
+	local curr="${COMP_WORDS[$COMP_CWORD]}"
+	local hint=""
+
+	case ${COMP_CWORD} in
+		1)
+			hint="$(ls ${HOME}/.gopath/ 2>/dev/null)"
+			;;
+	esac
+	COMPREPLY=( $(compgen -W "${hint}" -- "${curr}") )
+}
+
+
+complete -F __goto_cmpl goto
+complete -F __gorm_cmpl gorm
+
