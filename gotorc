@@ -179,7 +179,7 @@ function gorm() {
 
 	case $# in
 		1)
-			name="$(basename ${1})"
+			workspace="$(basename ${1})"
 			;;
 		*)
 			echo
