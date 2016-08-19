@@ -1,12 +1,40 @@
 #!/bin/bash
 
-export GOTO_DEFAULT_VERSION="1.6"
+
+export GOTO_DEFAULT_VERSION="1.7"
+export GOTO_PACKAGES=(
+	"github.com/nsf/gocode"
+	"github.com/alecthomas/gometalinter"
+	"golang.org/x/tools/cmd/goimports"
+	"github.com/rogpeppe/godef"
+	"golang.org/x/tools/cmd/oracle"
+	"golang.org/x/tools/cmd/gorename"
+	"github.com/golang/lint/golint"
+	"github.com/kisielk/errcheck"
+	"github.com/jstemmer/gotags"
+	"github.com/klauspost/asmfmt/cmd/asmfmt"
+	"github.com/kardianos/govendor"
+)
 
 
 function gopaths() {
-	echo "GOROOT ...: ${GOROOT}"
-	echo "GOPATH ...: ${GOPATH}"
-	echo "PATH .....: ${PATH}"
+	echo "... GOROOT ...: ${GOROOT}"
+	echo "... GOPATH ...: ${GOPATH}"
+	echo "... PATH .....: ${PATH}"
+}
+
+
+function gosetup() {
+	local OLD_GOPATH="${GOPATH}"
+	GOPATH="${GOROOT}/extras"
+
+	for package in ${GOTO_PACKAGES[@]}
+	do
+		echo "    get ${package}..."
+		go get -u ${package}
+	done
+
+	GOPATH="${OLD_GOPATH}"
 }
 
 
@@ -17,7 +45,7 @@ function goto() {
 	local opt=""
 
 	# Get options
-	while getopts ":hv:w:" opt
+	while getopts ":hv:" opt
 	do
 		case "${opt}" in
 			h)
@@ -42,6 +70,8 @@ function goto() {
 		esac
 	done
 
+	shift $((OPTIND-1))
+
 	# Get arguments
 	case $# in
 		0)
@@ -65,6 +95,7 @@ function goto() {
 	local NEW_GOPATH="${HOME}/.gopath/${workspace}"
 	local NEW_GOROOT="${HOME}/.goroot/${goversion}/go"
 	local NEW_PWD=""
+	local SETUP="no"
 	
 	# Check arguments
 
@@ -97,13 +128,15 @@ function goto() {
 		echo "Download go version ${goversion} -> $(dirname "${NEW_GOROOT}")..."
 		mkdir -p "$(dirname "${NEW_GOROOT}")" 
 		
-		curl -s "https://storage.googleapis.com/golang/go${goversion}.linux-amd64.tar.gz" | tar -C "$(dirname "${NEW_GOROOT}")" -xzf -
+		curl "https://storage.googleapis.com/golang/go${goversion}.linux-amd64.tar.gz" | tar -C "$(dirname "${NEW_GOROOT}")" -xzf -
 		
 		if [ $? -ne 0 ]
 		then
 			echo "Cannot download version of golang: ${goversion}"
 			return 1
 		fi
+
+		SETUP="yes"
 	fi
 
 	# Download PROJECT if not exists
@@ -139,16 +172,19 @@ function goto() {
 
 	# Finally set GOROOT, GOPATH and goto project directory...
 
+	goaway
+
 	export GOROOT="${NEW_GOROOT}"
 	export GOPATH="${NEW_GOPATH}"
+	export PATH="${GOPATH}/bin:${GOROOT}/extras/bin:${GOROOT}/bin:${PATH}"
 	cd "${NEW_PWD}"
 
 	# Don't forget about PATH...
-
-	local NEW_PATH_1=${PATH}
-	local NEW_PATH_2=$(echo ${NEW_PATH_1} | sed -e "s|[:]*${HOME}/.goroot/[^/]*/go/bin[/]*||g")
-	local NEW_PATH_3=$(echo ${NEW_PATH_2} | sed -e "s|[:]*${HOME}/.gopath/[^/]*/bin[/]*||g")
-	export PATH="${GOPATH}/bin:${GOROOT}/bin:${NEW_PATH_3}"
+	
+	if [ "${SETUP}" = "yes" ]
+	then
+		gosetup
+	fi
 
 	gopaths
 }
@@ -174,6 +210,20 @@ function __goto_cmpl() {
 }
 
 
+function goaway() {
+	unset GOPATH
+	unset GOROOT
+
+	local NEW_PATH_1=${PATH}
+	local NEW_PATH_2=$(echo ${NEW_PATH_1} | sed -e "s|[:]*${HOME}/.goroot/[^/]*/go/extras/bin[/]*||g")
+	local NEW_PATH_3=$(echo ${NEW_PATH_2} | sed -e "s|[:]*${HOME}/.goroot/[^/]*/go/bin[/]*||g")
+	local NEW_PATH_4=$(echo ${NEW_PATH_3} | sed -e "s|[:]*${HOME}/.gopath/[^/]*/bin[/]*||g")
+	local NEW_PATH_5=$(echo ${NEW_PATH_4} | sed -e "s|^[:]*\([^:].*[^:]\)[:]*$|\1|g")
+
+	export PATH="${NEW_PATH_5}"
+}
+
+
 function gorm() {
 	local workspace=""
 
@@ -188,6 +238,12 @@ function gorm() {
 			return 1
 			;;
 	esac
+
+	if [ -z "${workspace}" ]
+	then
+		echo "Workspace empty?"
+		return 1
+	fi
 
 	dir="${HOME}/.gopath/${workspace}"
 	if ! [ -e "${dir}" ]
