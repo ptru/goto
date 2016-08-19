@@ -55,6 +55,7 @@ function goto() {
 				echo -e "\t-h:\n\t\tThis help menu."
 				echo -e "\t-v <go-version>:\n\t\tGolang version, default is '${GOTO_DEFAULT_VERSION}'."
 				echo
+				return 0
 				;;
 			v)
 				goversion="${OPTARG}"
