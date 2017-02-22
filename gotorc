@@ -1,18 +1,22 @@
 #!/bin/bash
 
 
-export GOTO_DEFAULT_VERSION="1.7"
+export GOTO_DEFAULT_VERSION="1.8"
 export GOTO_PACKAGES=(
 	"github.com/nsf/gocode"
 	"github.com/alecthomas/gometalinter"
 	"golang.org/x/tools/cmd/goimports"
 	"github.com/rogpeppe/godef"
-	"golang.org/x/tools/cmd/oracle"
+	"golang.org/x/tools/cmd/guru"
 	"golang.org/x/tools/cmd/gorename"
 	"github.com/golang/lint/golint"
 	"github.com/kisielk/errcheck"
 	"github.com/jstemmer/gotags"
 	"github.com/klauspost/asmfmt/cmd/asmfmt"
+    "github.com/zmb3/gogetdoc"
+    "github.com/josharian/impl"
+    "github.com/fatih/gomodifytags"
+    "github.com/fatih/motion"
 	"github.com/kardianos/govendor"
 )
 
