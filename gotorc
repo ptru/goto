@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-export GOTO_DEFAULT_VERSION="1.8"
+export GOTO_DEFAULT_VERSION="1.8.1"
 export GOTO_PACKAGES=(
 	"github.com/nsf/gocode"
 	"github.com/alecthomas/gometalinter"
@@ -21,10 +21,15 @@ export GOTO_PACKAGES=(
 )
 
 
-function gopaths() {
-	echo "... GOROOT ...: ${GOROOT}"
-	echo "... GOPATH ...: ${GOPATH}"
-	echo "... PATH .....: ${PATH}"
+function gostatus() {
+    if [ -n "${GOPATH}" ] && [ -r ${GOPATH}/.project ]
+    then
+    	echo -e "GOROOT ......: \033[32;1m${GOROOT}\033[0m"
+	    echo -e "GOPATH ......: \033[32;1m${GOPATH}\033[0m"
+        echo -e "GIT BRANCH...: $(git branch --color 2>/dev/null | grep ^\* | cut -f2- -d' ')"
+    else
+        echo "no GOPATH defined"
+    fi
 }
 
 
@@ -80,8 +85,8 @@ function goto() {
 	# Get arguments
 	case $# in
 		0)
-			echo "Missing arguments, try with options '-h'" >&2
-			return 1
+            gostatus
+			return 0
 			;;
 		1)
 			workspace="${1}"
@@ -191,7 +196,7 @@ function goto() {
 		gosetup
 	fi
 
-	gopaths
+    gostatus
 }
 
 
@@ -214,6 +219,14 @@ function __goto_cmpl() {
 	COMPREPLY=( $(compgen -W "${hint}" -- "${curr}") )
 }
 
+
+function goback() {
+    if [ -n "${GOPATH}" ] && [ -r ${GOPATH}/.project ]
+    then
+        cd ${GOPATH}/src/$(cat ${GOPATH}/.project)
+        gostatus
+    fi
+}
 
 function goaway() {
 	unset GOPATH
