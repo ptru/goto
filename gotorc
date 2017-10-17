@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-export GOTO_DEFAULT_VERSION="1.8.1"
+export GOTO_DEFAULT_VERSION="1.9"
 export GOTO_PACKAGES=(
 	"github.com/nsf/gocode"
 	"github.com/alecthomas/gometalinter"
@@ -120,12 +120,22 @@ function goto() {
 
 	if [ -e "${NEW_GOPATH}" ]
 	then
-		NEW_GOROOT="$(cat ${NEW_GOPATH}/.goroot)"
+		NEW_GOROOT="$(cat ${NEW_GOPATH}/.goroot 2>/dev/null)"
+        if [ -z "${NEW_GOROOT}" ]
+        then
+            echo "Not defined GOROOT"
+            return 1
+        fi
 		
 		# Workspace exists, if not given project argument, choose default
 		if [ -z "${project}" ]
 		then
-			project="$(cat ${NEW_GOPATH}/.project)"
+			project="$(cat ${NEW_GOPATH}/.project 2>/dev/null)"
+            if [ -z "${project}" ]
+            then
+                echo "Not defined GOPATH"
+                return 1
+            fi
 		fi
 
 		NEW_PWD="${NEW_GOPATH}/src/${project}"
@@ -138,13 +148,16 @@ function goto() {
 		fi
 
 		NEW_PWD="${NEW_GOPATH}/src/${project}"
+    else
+        echo "Cannot create directory GOPATH=${NEW_GOPATH}"
+        return 1
 	fi
 
 	# Download GO if not exists
 
 	if ! [ -e "${NEW_GOROOT}" ]
 	then
-		echo "Download go version ${goversion} -> $(dirname "${NEW_GOROOT}")..."
+		echo "Download go version ${goversion} -> $(dirname "${NEW_GOROOT}") ..."
 		mkdir -p "$(dirname "${NEW_GOROOT}")"
 		
 		curl "https://storage.googleapis.com/golang/go${goversion}.linux-amd64.tar.gz" | tar -C "$(dirname "${NEW_GOROOT}")" -xzf -
