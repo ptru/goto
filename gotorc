@@ -18,6 +18,7 @@ export GOTO_PACKAGES=(
     "github.com/fatih/gomodifytags"
     "github.com/fatih/motion"
 	"github.com/kardianos/govendor"
+    "github.com/derekparker/delve/cmd/dlv"
 )
 
 
