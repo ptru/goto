@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export GOTO_DEFAULT_VERSION="1.12.7"
+export GOTO_DEFAULT_VERSION="1.14.2"
 export GOTO_PACKAGES=(
 	"github.com/nsf/gocode"
 	"github.com/alecthomas/gometalinter"
