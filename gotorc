@@ -332,3 +332,23 @@ function __gorm_cmpl() {
 complete -F __goto_cmpl goto
 complete -F __gorm_cmpl gorm
 
+
+function godetect() {
+	if [ -n "${GOPATH}" ] && [ -n "${GOROOT}" ]
+	then
+		return
+	fi
+
+	local p=$(echo ${PWD} | grep -o '.*/.gopath/[a-zA-Z0-9_.-]*')
+
+	if [ -n "${p}" ]
+	then
+		export GOPATH="${p}"
+		export GOROOT="$(cat ${p}/.goroot)"
+		export PATH="${GOPATH}/bin:${GOROOT}/extras/bin:${GOROOT}/bin:${PATH}"
+		gostatus
+	fi
+}
+
+
+godetect
