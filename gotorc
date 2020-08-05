@@ -1,7 +1,6 @@
 #!/bin/bash
 
-
-export GOTO_DEFAULT_VERSION="1.10.2"
+export GOTO_DEFAULT_VERSION="1.14.2"
 export GOTO_PACKAGES=(
 	"github.com/nsf/gocode"
 	"github.com/alecthomas/gometalinter"
@@ -13,24 +12,24 @@ export GOTO_PACKAGES=(
 	"github.com/kisielk/errcheck"
 	"github.com/jstemmer/gotags"
 	"github.com/klauspost/asmfmt/cmd/asmfmt"
-    "github.com/zmb3/gogetdoc"
-    "github.com/josharian/impl"
-    "github.com/fatih/gomodifytags"
-    "github.com/fatih/motion"
+	"github.com/zmb3/gogetdoc"
+	"github.com/josharian/impl"
+	"github.com/fatih/gomodifytags"
+	"github.com/fatih/motion"
 	"github.com/kardianos/govendor"
-    "github.com/derekparker/delve/cmd/dlv"
+	"github.com/derekparker/delve/cmd/dlv"
 )
 
 
 function gostatus() {
-    if [ -n "${GOPATH}" ] && [ -r ${GOPATH}/.project ]
-    then
-    	echo -e "GOROOT .......: \033[32;1m${GOROOT}\033[0m"
-	    echo -e "GOPATH .......: \033[32;1m${GOPATH}\033[0m"
-        echo -e "GIT BRANCH ...: $(git branch --color 2>/dev/null | grep ^\* | cut -f2- -d' ')"
-    else
-        echo "no GOPATH defined"
-    fi
+	if [ -n "${GOPATH}" ] && [ -r ${GOPATH}/.project ]
+	then
+		echo -e "GOROOT .......: \033[32;1m${GOROOT}\033[0m"
+		echo -e "GOPATH .......: \033[32;1m${GOPATH}\033[0m"
+		echo -e "GIT BRANCH ...: $(git branch --color 2>/dev/null | grep ^\* | cut -f2- -d' ')"
+	else
+		echo "no GOPATH defined"
+	fi
 }
 
 
@@ -91,7 +90,7 @@ function goto() {
 	# Get arguments
 	case $# in
 		0)
-            gostatus
+			gostatus
 			return 0
 			;;
 		1)
@@ -122,21 +121,22 @@ function goto() {
 	if [ -e "${NEW_GOPATH}" ]
 	then
 		NEW_GOROOT="$(cat ${NEW_GOPATH}/.goroot 2>/dev/null)"
-        if [ -z "${NEW_GOROOT}" ]
-        then
-            echo "Not defined GOROOT"
-            return 1
-        fi
+
+		if [ -z "${NEW_GOROOT}" ]
+		then
+			echo "Not defined GOROOT"
+			return 1
+		fi
 		
 		# Workspace exists, if not given project argument, choose default
 		if [ -z "${project}" ]
 		then
 			project="$(cat ${NEW_GOPATH}/.project 2>/dev/null)"
-            if [ -z "${project}" ]
-            then
-                echo "Not defined GOPATH"
-                return 1
-            fi
+			if [ -z "${project}" ]
+			then
+				echo "Not defined GOPATH"
+				return 1
+			fi
 		fi
 
 		NEW_PWD="${NEW_GOPATH}/src/${project}"
@@ -149,9 +149,9 @@ function goto() {
 		fi
 
 		NEW_PWD="${NEW_GOPATH}/src/${project}"
-    else
-        echo "Cannot create directory GOPATH=${NEW_GOPATH}"
-        return 1
+	else
+		echo "Cannot create directory GOPATH=${NEW_GOPATH}"
+		return 1
 	fi
 
 	# Download GO if not exists
@@ -160,7 +160,7 @@ function goto() {
 	then
 		echo "Download go version ${goversion} -> $(dirname "${NEW_GOROOT}") ..."
 		mkdir -p "$(dirname "${NEW_GOROOT}")"
-		
+
 		curl "https://storage.googleapis.com/golang/go${goversion}.linux-amd64.tar.gz" | tar -C "$(dirname "${NEW_GOROOT}")" -xzf -
 		
 		if [ $? -ne 0 ]
@@ -190,7 +190,7 @@ function goto() {
 	then
 		echo "Create ${project} -> $(dirname "${NEW_GOPATH}/src/${project}")..."
 		mkdir -p "$(dirname "${NEW_GOPATH}/src/${project}")"
-		
+
 		cd $_
 		git clone "https://${project}.git" "${NEW_GOPATH}/src/${project}"
 		local EXIT_CODE=$?
@@ -212,13 +212,12 @@ function goto() {
 	cd "${NEW_PWD}"
 
 	# Don't forget about PATH...
-	
 	if [ "${SETUP}" = "yes" ]
 	then
 		goextra
 	fi
 
-    gostatus
+	gostatus
 }
 
 
@@ -308,7 +307,6 @@ function gorm() {
 		echo "Removing..."
 		rm -rf "${dir}"
 		echo "Removed!"
-
 		return 0
 	else
 		echo "Aborted!"
@@ -326,6 +324,7 @@ function __gorm_cmpl() {
 			hint="$(ls ${HOME}/.gopath/ 2>/dev/null)"
 			;;
 	esac
+
 	COMPREPLY=( $(compgen -W "${hint}" -- "${curr}") )
 }
 
@@ -333,3 +332,23 @@ function __gorm_cmpl() {
 complete -F __goto_cmpl goto
 complete -F __gorm_cmpl gorm
 
+
+function godetect() {
+	if [ -n "${GOPATH}" ] && [ -n "${GOROOT}" ]
+	then
+		return
+	fi
+
+	local p=$(echo ${PWD} | grep -o '.*/.gopath/[a-zA-Z0-9_.-]*')
+
+	if [ -n "${p}" ]
+	then
+		export GOPATH="${p}"
+		export GOROOT="$(cat ${p}/.goroot)"
+		export PATH="${GOPATH}/bin:${GOROOT}/extras/bin:${GOROOT}/bin:${PATH}"
+		gostatus
+	fi
+}
+
+
+godetect
